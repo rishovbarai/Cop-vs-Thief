@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const LandingPage = () => {
   return (
@@ -7,16 +8,14 @@ const LandingPage = () => {
       <p className="text-xl text-gray-700 text-center mb-12">
         A thrilling chase to catch the fugitive! Can you and your fellow cops corner the thief?
       </p>
-      <button
-        type="button"
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-md"
-        onClick={() => {
-          // Handle button click (e.g., navigate to game page)
-          console.log('Start Game clicked!');
-        }}
-      >
-        Start Game
-      </button>
+      <Link to="/citySelectionPage">
+        <button
+          type="button"
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-md"
+        >
+          Start Game
+        </button>
+      </Link>
     </div>
   );
 }

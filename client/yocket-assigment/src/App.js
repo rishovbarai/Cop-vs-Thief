@@ -1,9 +1,18 @@
 import './App.css';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/landingPage';
+import CitySelectionPage from './pages/citySelectionPage';
+import ResultPage from './pages/resultPage';
 
-function App() {
+const App = ()=> {
   return (
-   <LandingPage/>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/CitySelectionPage" element={<CitySelectionPage />} />
+        <Route path="/resultPage" element={<ResultPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
