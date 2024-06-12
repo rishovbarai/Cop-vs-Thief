@@ -14,7 +14,7 @@ function CitySelectionPage() {
 
   useEffect(() => {
     // Fetch city distances
-    fetch(`${serverUrl}/api/cityDistances`)
+    fetch(`${serverUrl}/cityDistances`)
       .then(response => response.json())
       .then(data => {
         setCityDistances(data);
@@ -23,13 +23,13 @@ function CitySelectionPage() {
       .catch(error => console.error('Error fetching city distances:', error));
 
     // Fetch vehicles
-    fetch(`${serverUrl}/api/vehicles`)
+    fetch(`${serverUrl}/vehicles`)
       .then(response => response.json())
       .then(data => setAvailableVehicles(data))
       .catch(error => console.error('Error fetching vehicles:', error));
 
     // Fetch cop IDs
-    fetch(`${serverUrl}/api/copIds`)
+    fetch(`${serverUrl}/copIds`)
       .then(response => response.json())
       .then(data => {
         setCopIds(data);

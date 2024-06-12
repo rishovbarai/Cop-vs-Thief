@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors'); // Import the cors package
 const app = express();
+const serverless = require('serverless-http');
+const router = express.Router();
 const PORT = 5000;
 
 // Middleware to parse JSON bodies
@@ -28,17 +30,17 @@ const COP_IDS = ["Abhishek", "Rana", "Pandit"];
 const cities = Object.keys(cityDistances); // Define the cities array from the cityDistances object
 
 // Route to get city distances
-app.get('/api/cityDistances', (req, res) => {
+router.get('/cityDistances', (req, res) => {
     res.json(cityDistances);
 });
 
 // Route to get vehicles
-app.get('/api/vehicles', (req, res) => {
+router.get('/vehicles', (req, res) => {
     res.json(vehicles);
 });
 
 // Route to get cop IDs
-app.get('/api/copIds', (req, res) => {
+router.get('/copIds', (req, res) => {
     res.json(COP_IDS);
 });
 
@@ -49,7 +51,7 @@ const getRandomCity = () => {
 };
 
 // Route to simulate the fugitive's location, compare with cop selections, and determine capture status
-app.post('/capture-status', (req, res) => {
+router.post('/capture-status', (req, res) => {
     try {
         // Extract cop selection data from the request body
         const copSelections = req.body;
@@ -87,12 +89,15 @@ app.post('/capture-status', (req, res) => {
 });
 
 // Error handler middleware
-app.use((err, req, res, next) => {
+router.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start the server
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+app.use('/.netlify/functions/api', router);
+module.exports.handler = serverless(app);
+
+const port = 8080;
+app.listen(process.env.PORT || port, ()=>{
+    console.log(`server running on port ${port}`);
+})
