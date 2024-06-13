@@ -10,6 +10,9 @@ function CitySelectionPage() {
   const [availableVehicles, setAvailableVehicles] = useState([]);
   const [cityDistances, setCityDistances] = useState({});
   const [copIds, setCopIds] = useState([]);
+  const [isLoading, setIsLoading] = useState(false); // Loading state for submission
+  const [isInitialLoading, setIsInitialLoading] = useState(true); // Initial loading state
+  const [errors, setErrors] = useState({}); // Error state for vehicle availability
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,7 +38,8 @@ function CitySelectionPage() {
         setCopIds(data);
         setSelectedData(data.map(copId => ({ copId, city: "", vehicleType: "" })));
       })
-      .catch(error => console.error('Error fetching cop IDs:', error));
+      .catch(error => console.error('Error fetching cop IDs:', error))
+      .finally(() => setIsInitialLoading(false)); // End initial loading
   }, []);
 
   useEffect(() => {
@@ -47,47 +51,65 @@ function CitySelectionPage() {
   }, [copCities, cityDistances]);
 
   const handleCitySelection = (copId, chosenCity) => {
-    const currentVehicle = copVehicles[copId];
+    // Reset cop vehicle selection when city changes
+    setCopVehicles((prevCopVehicles) => ({
+      ...prevCopVehicles,
+      [copId]: null,
+    }));
+    const prevChosenVehicle = copVehicles[copId];
+  if (prevChosenVehicle) {
+    setAvailableVehicles((prevAvailableVehicles) =>
+      prevAvailableVehicles.map((vehicle) =>
+        vehicle.type === prevChosenVehicle.type
+          ? { ...vehicle, count: vehicle.count + 1 } // Increment count
+          : vehicle
+      )
+    );
+  }
+
+  setCopVehicles((prevCopVehicles) => ({
+    ...prevCopVehicles,
+    [copId]: null,
+  }));
+  
     setCopCities((prevCopCities) => {
       const updatedCopCities = { ...prevCopCities, [copId]: chosenCity };
-
-      if (currentVehicle) {
-        updateSelectedData(copId, chosenCity, currentVehicle.type);
-      }
-
+  
       return updatedCopCities;
     });
   };
-
+  
   const handleVehicleSelection = (copId, chosenVehicleType) => {
-    const previousVehicle = copVehicles[copId];
     const chosenCity = copCities[copId];
     const selectedVehicle = availableVehicles.find(
-      (vehicle) => vehicle.type === chosenVehicleType
+      (vehicle) => vehicle.type === chosenVehicleType && vehicle.count > 0
     );
-
+  
     if (selectedVehicle) {
-      setCopVehicles((prevCopVehicles) => {
-        const updatedCopVehicles = { ...prevCopVehicles, [copId]: selectedVehicle };
-         // Update available vehicle count
-       setAvailableVehicles(prevAvailableVehicles => 
-        prevAvailableVehicles.map(vehicle => {
-          if (vehicle.type === chosenVehicleType) {
-            return { ...vehicle, count: vehicle.count - 1 };
-          } else if (previousVehicle && vehicle.type === previousVehicle.type) {
-            return { ...vehicle, count: vehicle.count + 1 };
-          }
-          return vehicle;
-        })
+      setCopVehicles((prevCopVehicles) => ({
+        ...prevCopVehicles,
+        [copId]: selectedVehicle,
+      }));
+  
+      // Update available vehicle count
+      setAvailableVehicles((prevAvailableVehicles) =>
+        prevAvailableVehicles.map((vehicle) =>
+          vehicle.type === chosenVehicleType
+            ? { ...vehicle, count: vehicle.count - 1 }
+            : vehicle
+        )
       );
-        if (chosenCity) {
-          updateSelectedData(copId, chosenCity, selectedVehicle.type);
-        }
-
-        return updatedCopVehicles;
-      });
+  
+      if (chosenCity) {
+        updateSelectedData(copId, chosenCity, selectedVehicle.type);
+      }
     }
   };
+  
+  
+  
+  
+  
 
   const updateSelectedData = (copId, city, vehicleType) => {
     setSelectedData((prevSelectedData) =>
@@ -97,10 +119,16 @@ function CitySelectionPage() {
     );
   };
 
-  const getAvailableVehicles = (cityDistance) => {
+  const getAvailableVehicles = (chosenCity) => {
+    const cityDistance = cityDistances[chosenCity];
+    if (!cityDistance) return [];
+  
     const roundTripDistance = cityDistance * 2;
     return availableVehicles.filter(
-      (vehicle) => vehicle.range >= roundTripDistance && vehicle.count > 0
+      (vehicle) =>
+        vehicle.range >= roundTripDistance &&
+        vehicle.count > 0 &&
+        !(copVehicles[chosenCity] && copVehicles[chosenCity].type === vehicle.type)
     );
   };
 
@@ -110,6 +138,7 @@ function CitySelectionPage() {
     );
 
     if (isAllSelected) {
+      setIsLoading(true); // Start loading
       submitSelections(selectedData);
     } else {
       console.error("All cops must select both city and vehicle.");
@@ -134,6 +163,8 @@ function CitySelectionPage() {
       }
     } catch (error) {
       console.error("Error:", error);
+    } finally {
+      setIsLoading(false); // End loading
     }
   };
 
@@ -142,7 +173,16 @@ function CitySelectionPage() {
     setCopVehicles({});
     setSelectedData(copIds.map(copId => ({ copId, city: "", vehicleType: "" })));
     setAvailableVehicles([...availableVehicles]);
+    setErrors({}); // Clear errors
   };
+
+  if (isInitialLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <img src="/loader.gif" alt="Loading..." /> {/* Path to the loader GIF in public folder */}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -165,109 +205,104 @@ function CitySelectionPage() {
                 >
                   <option value="">Choose City</option>
                   {availableCities.map((city) => (
-                                          <option key={city} value={city}>
-                                          {city}
-                                        </option>
-                                      ))}
-                                  </select>
-                                </>
-                              ) : (
-                                <select
-                                  className={`border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                    availableCities.length === 0 ? "bg-gray-200 cursor-not-allowed" : ""
-                                  }`}
-                                  value={copCities[copId] || ""} 
-                                  onChange={(e) => handleCitySelection(copId, e.target.value)}
-                                  disabled={availableCities.length === 0}
-                                >
-                                  <option value="">Choose City</option>
-                                  {availableCities.map((city) => (
-                                    <option key={city} value={city}>
-                                      {city}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                            {copCities[copId] && (
-                              <div className="flex items-center gap-2 mb-4">
-                                <p className="font-medium">City Distance:</p>
-                                <span className="text-gray-700">
-                                  {cityDistances[copCities[copId]]} km
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">Vehicle:</p>
-                              {copVehicles[copId] ? (
-                                <>
-                                  <span className="text-blue-500 font-bold mr-2">
-                                    {copVehicles[copId].type}
-                                  </span>
-                                  <select
-                                    className={`border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                                    value={copVehicles[copId].type}
-                                    onChange={(e) =>
-                                      handleVehicleSelection(copId, e.target.value)
-                                    }
-                                  >
-                                    <option value="">Choose Vehicle</option>
-                                    {getAvailableVehicles(cityDistances[copCities[copId]]).map(
-                                      (vehicle) => (
-                                        <option key={vehicle.type} value={vehicle.type}>
-                                          {vehicle.type} (Range: {vehicle.range} km, Available:{" "}
-                                          {vehicle.count})
-                                        </option>
-                                      )
-                                    )}
-                                  </select>
-                                </>
-                              ) : (
-                                <select
-                                  className={`border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                    getAvailableVehicles(cityDistances[copCities[copId]])
-                                      .length === 0
-                                      ? "bg-gray-200 cursor-not-allowed"
-                                      : ""
-                                  }`}
-                                  value={copVehicles[copId]?.type || ""} 
-                                  onChange={(e) => handleVehicleSelection(copId, e.target.value)}
-                                  disabled={
-                                    !copCities[copId] ||
-                                    getAvailableVehicles(cityDistances[copCities[copId]])
-                                      .length === 0
-                                  }
-                                >
-                                  <option value="">Choose Vehicle</option>
-                                  {getAvailableVehicles(cityDistances[copCities[copId]]).map(
-                                    (vehicle) => (
-                                      <option key={vehicle.type} value={vehicle.type}>
-                                        {vehicle.type} (Range: {vehicle.range} km, Available:{" "}
-                                        {vehicle.count})
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        <button
-                          className="mt-4 bg-blue-500 text-white py-2 px-4 rounded-md"
-                          onClick={handleSubmit}
-                        >
-                          Submit Selections
-                        </button>
-                        <button
-                          className="mt-2 bg-red-500 text-white py-2 px-4 rounded-md"
-                          onClick={resetSelections}
-                        >
-                          Reset Selections
-                        </button>
-                      </div>
-                    );
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <select
+                className={`border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  availableCities.length === 0 ? "bg-gray-200 cursor-not-allowed" : ""
+                }`}
+                value={copCities[copId] || ""} 
+                onChange={(e) => handleCitySelection(copId, e.target.value)}
+                disabled={availableCities.length === 0}
+              >
+                <option value="">Choose City</option>
+                {availableCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {copCities[copId] && (
+            <div className="flex items-center gap-2 mb-4">
+              <p className="font-medium">City Distance:</p>
+              <span className="text-gray-700">
+                {cityDistances[copCities[copId]]} km
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 mb-4">
+            <p className="font-medium">Vehicle:</p>
+            {copVehicles[copId] ? (
+              <>
+                <span className="text-blue-500 font-bold mr-2">
+                  {copVehicles[copId].type}
+                </span>
+                <select
+                  className={`border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  value={copVehicles[copId].type}
+                  onChange={(e) =>
+                    handleVehicleSelection(copId, e.target.value)
                   }
-                  
-                  export default CitySelectionPage;
-                  
-                   
+                >
+                  <option value="">Choose Vehicle</option>
+                  {getAvailableVehicles(copCities[copId]).map((vehicle) => (
+                    <option key={vehicle.type} value={vehicle.type}>
+                      {vehicle.type                      } (Range: {vehicle.range} km, Available: {vehicle.count})
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <select
+                className={`border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                value=""
+                onChange={(e) => handleVehicleSelection(copId, e.target.value)}
+                disabled={!copCities[copId]}
+              >
+                <option value="">Choose Vehicle</option>
+                {copCities[copId] && getAvailableVehicles(copCities[copId]).length === 0 && (
+                  <option disabled>No vehicle available for the city. Please choose another city.</option>
+                )}
+                {copCities[copId] && getAvailableVehicles(copCities[copId]).map(
+                  (vehicle) => (
+                    <option key={vehicle.type} value={vehicle.type}>
+                      {vehicle.type} (Range: {vehicle.range} km, Available: {vehicle.count})
+                    </option>
+                  )
+                )}
+              </select>
+            )}
+          </div>
+          {errors[copId] && (
+            <p className="text-red-500 text-sm mb-2">{errors[copId]}</p>
+          )}
+        </div>
+      ))}
+      <div className="flex justify-center gap-4 mt-4">
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 focus:outline-none"
+          onClick={handleSubmit}
+          disabled={isLoading}
+        >
+          {isLoading ? "Loading..." : "Submit"}
+        </button>
+        <button
+          className="bg-gray-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-gray-600 focus:outline-none"
+          onClick={resetSelections}
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default CitySelectionPage;
+
