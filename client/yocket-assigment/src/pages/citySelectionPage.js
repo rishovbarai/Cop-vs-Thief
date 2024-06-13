@@ -3,6 +3,7 @@ import serverUrl from '../config';
 import { useNavigate } from "react-router-dom";
 
 function CitySelectionPage() {
+  const [error, setError] = useState(null); // Initialize error state
   const [copCities, setCopCities] = useState({});
   const [availableCities, setAvailableCities] = useState([]);
   const [copVehicles, setCopVehicles] = useState({});
@@ -141,7 +142,7 @@ function CitySelectionPage() {
       setIsLoading(true); // Start loading
       submitSelections(selectedData);
     } else {
-      console.error("All cops must select both city and vehicle.");
+      setError("Please ensure all cops have selected a city and vehicle.");
     }
   };
 
@@ -185,7 +186,7 @@ function CitySelectionPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 justify-center">
       {copIds.map((copId) => (
         <div key={copId} className="p-4 border rounded-lg shadow-md bg-white">
           <p className="text-lg font-semibold mb-2">Cop {copId}:</p>
@@ -285,6 +286,11 @@ function CitySelectionPage() {
           )}
         </div>
       ))}
+      {error && (
+      <div className="flex items-center justify-center w-64 h-12 bg-gray-200 rounded-md shadow-md">
+        <p className="text-red-500 text-sm mb-2">{error}</p>
+      </div>
+    )}
       <div className="flex justify-center gap-4 mt-4">
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 focus:outline-none"
